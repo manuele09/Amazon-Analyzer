@@ -1,14 +1,13 @@
 import datetime
-import socket
 from time import sleep
 import requests
 from bs4 import BeautifulSoup
-import pandas as pd
 
 reviewlist = []
 print("inizio")
-HOST = "10.0.100.37"  # The server's hostname or IP address10.0.100.37
-PORT = 1234  # The port used by the server
+HOST = "10.0.100.37"  # Ip logstash
+PORT = 1234  #Porta
+isin = "B09MRZHJB7"
 
 def get_soup(url):#ritorna la pagina html che contiene le recensioni
     #richiede la pagina dell'url tramite splash, r  è la pagina html che ci interessa
@@ -50,13 +49,12 @@ def get_reviews(soup): #fornisce una lista i cui elementi sono dizionari
             if (review != None):
                 date_time_obj = datetime.datetime.strptime(review['date'], '%d %B %Y')
                 review['date'] = str(date_time_obj.date())
-                #print(review['title'])
                 r = requests.post('http://10.0.100.37:1234', json=
                 {
                     "product":  review['product'],
                     "title":  review['title'],
                     "rating":  review['rating'],
-                    "tweet":  review['body'],
+                    "body":  review['body'],
                     "date" : review['date'],
                     "country": review['country'],
                     "verified": review['verified']
@@ -66,7 +64,6 @@ def get_reviews(soup): #fornisce una lista i cui elementi sono dizionari
         pass
 
 sleep(60)
-isin = "B09MRZHJB7"
 for x in range(1, 500):
     soup = get_soup(f'https://www.amazon.co.uk/product-reviews/{isin}/ref=cm_cr_arp_d_paging_btm_next_{x}?pageNumber={x}')
     print(f'Getting page: {x}')
@@ -79,6 +76,4 @@ for x in range(1, 500):
     else:
         break
 
-# df = pd.DataFrame(reviewlist)
-# df.to_excel('sony-headphones.xlsx', index=False)
 print('Fin.')

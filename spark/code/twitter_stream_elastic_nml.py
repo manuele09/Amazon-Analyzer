@@ -14,12 +14,12 @@ elastic_index="taptweet"
 kafkaServer="kafkaServer:9092"
 topic = "tap"
 
+
 mapping_principale = {
     "mappings": {
         "properties": 
             {
-                "tweet": {"type": "text","fielddata": True},
-                "prediction": {"type": "integer","fielddata": True},
+                "body": {"type": "text","fielddata": True},
                 "rating": {"type": "integer","fielddata": True},
                 "title": {"type": "text","fielddata": True},
                 "product": {"type": "text","fielddata": True},
@@ -37,7 +37,10 @@ mapping_secondario = {
         "properties": 
             {
                 "token": {"type": "text","fielddata": True},
-                "result": {"type": "text","fielddata": True}
+                "result": {"type": "text","fielddata": True},
+                "date": {"type": "date","format": "yyyy-MM-dd"},
+                "country": {"type": "text","fielddata": True},
+                "valutazione": {"type": "text","fielddata": True}
             }
     }
 }
@@ -53,7 +56,7 @@ tweetKafka = tp.StructType([
     tp.StructField(name= 'rating', dataType= tp.StringType(),  nullable= True),
     tp.StructField(name= 'title', dataType= tp.StringType(),  nullable= True),
     tp.StructField(name= 'product', dataType= tp.StringType(),  nullable= True),
-    tp.StructField(name= 'tweet', dataType= tp.StringType(),  nullable= True),
+    tp.StructField(name= 'body', dataType= tp.StringType(),  nullable= True),
     tp.StructField(name= 'date', dataType= tp.StringType(),  nullable= True),
     tp.StructField(name= 'country', dataType= tp.StringType(),  nullable= True),
     tp.StructField(name= 'verified', dataType= tp.StringType(),  nullable= True)
@@ -69,9 +72,6 @@ spark = SparkSession.builder \
     .config("es.port", "9200")\
     .getOrCreate()
 
-#.config("spark.jars.packages", "com.johnsnowlabs.nlp:spark-nlp_2.12:3.4.4")\
-#.config("spark.executor.memory", "6g")\
-# .config("spark.streaming.concurrentJobs","2") \
 
 df_kafka = spark \
     .readStream \
@@ -88,7 +88,7 @@ df_kafka = df_kafka.selectExpr("CAST(value AS STRING)") \
 
 #PRIMA PIPELINE
 document_assembler = DocumentAssembler() \
-    .setInputCol('tweet') \
+    .setInputCol('body') \
     .setOutputCol('document')
 tokenizer = Tokenizer() \
     .setInputCols(['document']) \
@@ -108,18 +108,17 @@ pos = PerceptronModel.load("/opt/tap/models/pos_anc_en_3.0.0_3.0_1614962126490")
 pipeline_secondaria = Pipeline(stages = [document_assembler, tokenizer, pos])
 
 
-
 #PRIMO
-df_base = pipeline_principale.fit(df_kafka).transform(df_kafka).select("rating", "title", "product", "tweet", "date", "country", "verified", "class", "token")
-df = df_base.withColumn("valutazione", F.col("class.result"))
+df = pipeline_principale.fit(df_kafka).transform(df_kafka).select("rating", "title", "product", "body", "date", "country", "verified", "class", "token")
+df = df.withColumn("valutazione", F.col("class.result"))
 df = df.withColumn("tokens", F.col("token.result"))
 df_principale = df.drop("class", "token")
 
 #SECONDO
-result = pipeline_secondaria.fit(df_base).transform(df_base)
-result = result.select(F.col("token.result").alias("token"), F.col("pos.result").alias("result"))
-result = result.select(F.explode(F.arrays_zip('token', 'result')).alias("cols"))
-df_secondario = result.select("cols.token", "cols.result")
+result = pipeline_secondaria.fit(df).transform(df)
+result = result.select(F.col("token.result").alias("token"), F.col("pos.result").alias("result"), "date", "country", "valutazione")
+result = result.select(F.explode(F.arrays_zip('token', 'result')).alias("cols"), "date", "country", "valutazione")
+df_secondario = result.select("cols.token", "cols.result", "date", "country", "valutazione")
 
 #Write the stream to elasticsearch
 df_secondario.writeStream \
