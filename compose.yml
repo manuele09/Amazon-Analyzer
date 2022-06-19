@@ -1,0 +1,119 @@
+version: '3.3'
+
+services:
+  splash:
+    container_name: my-web-container
+    image: scrapinghub/splash
+    expose:
+      - "8050"
+    networks:
+      tap:
+        ipv4_address: "10.0.100.50"
+
+
+  py_amazon_scraper:
+    build: ./Python
+    tty: true
+    depends_on:
+      - splash
+      - logstash
+    networks:
+      - tap
+        
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.1.2
+    expose:
+      - "1234"
+    volumes:
+      - "$PWD/logstash/pipeline/:/usr/share/logstash/pipeline/"
+    networks:
+      tap:
+        ipv4_address: "10.0.100.37"
+
+  kafkazk:
+        build: ./kafka
+        environment: 
+            - KAFKA_ACTION=start-zk
+        ports:
+            - "2181:2181"
+        networks:
+            tap:
+                ipv4_address: 10.0.100.22
+  kafkaserver:
+        build: ./kafka
+        depends_on:
+            - kafkazk
+        ports:
+            - "9092:9092"
+        environment: 
+            - KAFKA_ACTION=start-kafka
+        networks:
+            tap:
+                ipv4_address: 10.0.100.23
+
+  kafkatopic:
+        build: ./kafka
+        depends_on:
+            - kafkaserver
+        environment: 
+            - KAFKA_ACTION=create-topic
+            - KAFKA_SERVER=10.0.100.23
+            - KAFKA_TOPIC=tap
+        networks:
+            tap:
+                ipv4_address: 10.0.100.24
+  
+  webui:
+        image: provectuslabs/kafka-ui:latest
+        container_name: kafkaWebUI
+        environment:
+            - KAFKA_CLUSTERS_0_NAME=local
+            - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=10.0.100.23:9092
+            - KAFKA_CLUSTERS_0_ZOOKEEPER=10.0.100.22:2181
+        ports: 
+            - 8080:8080
+        networks: 
+            - tap
+  
+  elasticsearch:
+        image: docker.elastic.co/elasticsearch/elasticsearch:8.2.2
+        ports:
+            - "9200:9200"
+            - "9300:9300"
+        environment: 
+            - discovery.type=single-node
+            - xpack.security.enabled=false
+            - ES_JAVA_OPTS=-Xms1g -Xmx1g
+        networks:
+            tap:
+                ipv4_address: 10.0.100.51
+
+  kibana:
+        build: ./kibana
+        depends_on:
+            - elasticsearch
+        ports:
+            - "5601:5601"
+        environment: 
+          - "ES_JAVA_OPTS=-Xms6g -Xmx6g -Dorg.bytedeco.javacpp.maxBytes=0"
+        networks:
+            tap:
+                ipv4_address: 10.0.100.52
+  
+  spark:
+    build: ./spark
+    depends_on:
+      - elasticsearch
+    ports:
+      - "4040:4040"
+    networks:
+      - tap
+
+networks:
+    tap:
+        ipam:
+            driver: default
+            config:
+              - subnet: 10.0.100.0/25
+  
