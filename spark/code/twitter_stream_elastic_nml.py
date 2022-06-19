@@ -94,7 +94,7 @@ tokenizer = Tokenizer() \
     .setInputCols(['document']) \
     .setOutputCol('token')
 sequenceClassifier = DistilBertForSequenceClassification \
-      .load("/opt/tap/essentials/distilbert_base_sequence_classifier_amazon_polarity_en_3.3.3_3.0_1637503776952") \
+      .load("/opt/tap/models/distilbert_base_sequence_classifier_amazon_polarity_en_3.3.3_3.0_1637503776952") \
       .setInputCols(['token', 'document']) \
       .setOutputCol('class') \
       .setCaseSensitive(True) \
@@ -102,7 +102,7 @@ sequenceClassifier = DistilBertForSequenceClassification \
 pipeline_principale = Pipeline(stages=[document_assembler, tokenizer, sequenceClassifier])
 
 #SECONDA PIPELINE
-pos = PerceptronModel.load("/opt/tap/essentials/pos_anc_en_3.0.0_3.0_1614962126490")\
+pos = PerceptronModel.load("/opt/tap/models/pos_anc_en_3.0.0_3.0_1614962126490")\
         .setInputCols("document", "token")\
         .setOutputCol("pos")
 pipeline_secondaria = Pipeline(stages = [document_assembler, tokenizer, pos])

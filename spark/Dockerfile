@@ -17,6 +17,6 @@ RUN $SPARK_DIR/bin/spark-submit --packages org.apache.spark:spark-sql-kafka-0-10
 
 
 ADD code/*  /opt/tap/code/
-ADD essentials /opt/tap/essentials
+ADD models/* /opt/tap/models/*
 CMD $SPARK_DIR/bin/spark-submit --driver-java-options -Dorg.bytedeco.javacpp.maxphysicalbytes=0 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.1,org.elasticsearch:elasticsearch-spark-30_2.12:8.2.0,com.johnsnowlabs.nlp:spark-nlp_2.12:3.4.4 /opt/tap/code/twitter_stream_elastic_nml.py
 # CMD [ "./bin/spark-submit", "--driver-java-options", "-Dorg.bytedeco.javacpp.maxphysicalbytes=0", "--packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.1,org.elasticsearch:elasticsearch-spark-30_2.12:8.2.0,com.johnsnowlabs.nlp:spark-nlp_2.12:3.4.4", "/opt/tap/code/twitter_stream_elastic_nml.py" ]
