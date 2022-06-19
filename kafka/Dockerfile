@@ -1,5 +1,4 @@
 FROM openjdk:17-alpine
-LABEL maintainer="Salvo Nicotra"
 ENV PATH /opt/kafka/bin:$PATH
 ENV KAFKA_DIR "/opt/kafka"
 ARG KAFKA_VERSION="2.13-3.1.0"
