@@ -15,7 +15,7 @@ Moduli per Spark NLP:
 
 ## Per eseguire
 ```bash
-docker compose up
+docker-compose -f "compose.yml" up -d --build
 ```
 ## Link Utili
 
